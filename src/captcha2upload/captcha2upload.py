@@ -19,6 +19,8 @@ class CaptchaUpload:
         else:
             self.waittime = 10
 
+        self.captcha_id = None
+
     def getbalance(self):
         """
         This request need for get balance
@@ -33,8 +35,8 @@ class CaptchaUpload:
             return request.text
         elif request.text == "ERROR_KEY_DOES_NOT_EXIST":
             if self.logenabled:
-               self.log.error("[2CaptchaUpload] You used the wrong key in "
-                             "the query")
+                self.log.error("[2CaptchaUpload] You used the wrong key in "
+                               "the query")
             return 1
         elif request.text == "ERROR_WRONG_ID_FORMAT":
             if self.logenabled:
@@ -62,13 +64,13 @@ class CaptchaUpload:
         elif request.text == "CAPCHA_NOT_READY":
             if self.logenabled:
                 self.log.error("[2CaptchaUpload] CAPTCHA is being solved, "
-                              "repeat the request several seconds later, wait "
-                              "another %s seconds" % self.waittime)
+                               "repeat the request several seconds later, wait "
+                               "another %s seconds" % self.waittime)
             return self.getresult(id)
         elif request.text == "ERROR_KEY_DOES_NOT_EXIST":
             if self.logenabled:
-               self.log.error("[2CaptchaUpload] You used the wrong key in "
-                             "the query")
+                self.log.error("[2CaptchaUpload] You used the wrong key in "
+                               "the query")
             return 1
         elif request.text == "ERROR_WRONG_ID_FORMAT":
             if self.logenabled:
@@ -100,7 +102,8 @@ class CaptchaUpload:
                 if request.text.split('|')[0] == "OK":
                     if self.logenabled:
                         self.log.info("[2CaptchaUpload] Upload Ok")
-                    return self.getresult(request.text.split('|')[1])
+                        self.captcha_id = request.text.split('|')[1]
+                    return self.getresult(self.captcha_id)
                 elif request.text == "ERROR_WRONG_USER_KEY":
                     if self.logenabled:
                         self.log.error("[2CaptchaUpload] Wrong 'key' parameter"
@@ -165,3 +168,28 @@ class CaptchaUpload:
             if self.logenabled:
                 self.log.error("[2CaptchaUpload] File %s not exists" % pathfile)
             return 1
+
+    def report_bad_captcha(self):
+        """
+        Reports bad captcha.
+        :param captcha_id:
+        :return: <True/False> | Boolean
+        """
+        if self.captcha_id:
+            if self.logenabled:
+                self.log.info("[2CaptchaUpload] reporting bad captcha(%s) to server." % (self.captcha_id))
+
+            fullurl = "%s?action=reportbad&id=%s&key=%s" % (
+                self.settings['url_response'], self.captcha_id, self.settings['key'])
+            request = get(fullurl).text
+
+            if request.text == 'OK_REPORT_RECORDED':
+                if self.logenabled:
+                    self.log.info("[2CaptchaUpload] bad captcha(%s) reported to server." % (self.captcha_id))
+
+                else:
+                    if self.logenabled:
+                        self.log.error("[2CaptchaUpload] expected OK_REPORT_RECORDED response got %s instead.")
+        else:
+            if self.logenabled:
+                self.log.error("[2CaptchaUpload] There is no captcha_id")
